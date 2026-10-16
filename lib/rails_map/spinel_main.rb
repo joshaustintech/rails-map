@@ -39,11 +39,27 @@ module RailsMap
     def render_pattern(path, target)
       slug = relative(path).delete_prefix("app/controllers/").delete_suffix("_controller.rb")
       base = RenderTarget.new(target).base(slug)
-      view_glob(base)
+      view_paths(base)
     end
 
     def view_glob(base)
       File.join(@root, "#{base}.{#{VIEW_EXTENSIONS.join(",")}}")
+    end
+
+    def conventional_views(path, action)
+      directory = relative(path).delete_prefix("app/controllers/").delete_suffix("_controller.rb")
+      view_paths("app/views/#{directory}/#{action}")
+    end
+
+    def view_paths(base)
+      return Dir.glob(view_glob(base)).sort if self.class.glob_pattern?(base)
+
+      (@view_paths ||= {})[base] ||= VIEW_EXTENSIONS.map { |extension| File.join(@root, "#{base}.#{extension}") }
+        .select { |path| File.file?(path) }.sort
+    end
+
+    def self.glob_pattern?(value)
+      value.match?(/[\*?\[\{\\]/)
     end
   end
 
@@ -55,30 +71,30 @@ module RailsMap
       action_name = source_lines[index][/^\s*def\s+([\w!?]+)/, 1]
       body = ControllerScanner.action_body(source_lines, index)
       ControllerAction.new(path, index + 1, controller, route_controller(source),
-        action_name, body, self.class.body_line_numbers(index, body))
+        action_name, body)
     end
 
     def route_controller(source)
       source.relative(path).delete_prefix("app/controllers/").delete_suffix("_controller.rb")
     end
 
-    def self.body_line_numbers(index, body)
-      body.each_index.map { |offset| index + offset + 2 }
-    end
   end
   # One action and the source facts used to find its related views.
-  ControllerAction = Struct.new(:path, :line, :controller, :route_controller, :action, :body, :body_lines) do
+  ControllerAction = Struct.new(:path, :line, :controller, :route_controller, :action, :body) do
     def to_row(source)
       { "controller" => controller, "route_controller" => route_controller, "action" => action,
         "source" => source.evidence(path, line), "models" => ControllerScanner.model_names(body) }
     end
 
     def conventional_paths(source)
-      directory = source.relative(path).delete_prefix("app/controllers/").delete_suffix("_controller.rb")
-      Dir.glob(source.view_glob("app/views/#{directory}/#{action}")).sort
+      source.conventional_views(path, action)
     end
 
     def render_pattern(source, target)
+      source.render_pattern(path, target)
+    end
+
+    def render_paths(source, target)
       source.render_pattern(path, target)
     end
 
@@ -87,10 +103,12 @@ module RailsMap
     end
 
     def render_lines
-      body.each_with_index.map do |line, offset|
+      body.each_with_index.each_with_object([]) do |(line, offset), renderable|
+        next unless line.include?("render")
+
         source = line
         source += body[offset + 1].to_s if line.rstrip.end_with?(",")
-        [line, body_lines[offset], source]
+        renderable << [line, self.line + offset + 1, source]
       end
     end
   end
@@ -871,10 +889,6 @@ module RailsMap
       text.match(/\A[ \t]*(has_many|has_one|belongs_to|has_and_belongs_to_many)\s*\(?\s*:(\w+)/)
     end
 
-    def association_macro?
-      !text.lstrip.start_with?("#") && text.match?(/\b(?:has_many|has_one|belongs_to|has_and_belongs_to_many)\b/)
-    end
-
     def through_kind
       return "none" unless text.include?("through:")
       return "static" if text.match?(/through:\s*:\w+/)
@@ -1158,7 +1172,7 @@ module RailsMap
 
     def render_files(render_call, target)
       action = render_call.action
-      Dir.glob(action.render_pattern(@source, target)).sort.each do |view_path|
+      action.render_paths(@source, target).each do |view_path|
         candidate = action.view_candidate(view_path, render_call.line, "direct")
         @views << candidate.to_row(@source)
       end
@@ -1360,7 +1374,7 @@ module RailsMap
   class ModelScanner
     attr_reader :models, :associations, :unresolved
 
-    ASSOCIATION_MACROS = %w[has_many has_one belongs_to has_and_belongs_to_many].freeze
+    ASSOCIATION_PATTERN = /\b(?:has_many|has_one|belongs_to|has_and_belongs_to_many)\b/
 
     def initialize(source)
       @source = source
@@ -1384,9 +1398,21 @@ module RailsMap
       lines = File.readlines(path)
       name = model_name(path)
       @models << { "name" => name, "source" => @source.evidence(path, 1) }
-      lines.each_with_index do |line, index|
-        scan_association(ModelLine.new(path, index + 1, name, self.class.association_text(lines, index, line)))
+      self.class.association_candidates(lines).each do |index, text|
+        scan_association(ModelLine.new(path, index + 1, name, text))
       end
+    end
+
+    def self.association_candidates(lines)
+      candidates = []
+      lines.each_with_index do |line, index|
+        candidates << [index, association_text(lines, index, line)] if association_candidate?(line)
+      end
+      candidates
+    end
+
+    def self.association_candidate?(line)
+      !line.lstrip.start_with?("#") && ASSOCIATION_PATTERN.match?(line)
     end
 
     def self.association_text(lines, index, first_line)
@@ -1412,7 +1438,6 @@ module RailsMap
     def scan_association(source_line)
       match = source_line.association_match
       return association(source_line, match) if match
-      return unless source_line.association_macro?
 
       note_unresolved(source_line, "dynamic_association")
     end
@@ -1499,7 +1524,7 @@ module RailsMap
     def document(target)
       selected = selected_actions(target)
       views = matching_views(selected)
-      models, names = selected_models(selected, target)
+      models, names = selected_models(selected, target, views)
       { "schema_version" => 1, "actions" => selected, "routes" => matching_routes(selected),
         "views" => views, "models" => models,
         "associations" => selected_associations(names, target),
@@ -1510,12 +1535,9 @@ module RailsMap
       DocumentSelection.select(normalize_actions, target)
     end
 
-    def selected_model_names(actions)
-      actions.flat_map { |action| action["models"] + view_models(action) }.uniq
-    end
-
     def normalize_actions
-      rows = @controllers.actions.map { |row| self.class.normalize_action(row, known_models) }
+      names = MembershipIndex.build(known_models)
+      rows = @controllers.actions.map { |row| self.class.normalize_action(row, names) }
       rows.sort_by { |row| row.values_at("controller", "action") }
     end
 
@@ -1526,19 +1548,12 @@ module RailsMap
     def self.normalize_action(row, known)
       controller, route_controller, action, source, names = row.values_at("controller", "route_controller", "action", "source", "models")
       { "controller" => controller, "route_controller" => route_controller, "action" => action,
-        "source" => source, "models" => names.uniq.select { |name| known.include?(name) }.sort }
+        "source" => source, "models" => names.uniq.select { |name| known.key?(name) }.sort }
     end
 
-    def view_models(action)
-      paths = related_view_paths(action)
+    def view_models(views)
+      paths = views.map { |view| File.join(@source.root, view.fetch("path")) }.uniq
       Source.existing_paths(paths).flat_map { |path| ViewModelScanner.names(path) }
-    end
-
-    def related_view_paths(action)
-      @controllers.views.select do |view|
-        controller, view_action = view.values_at("controller", "action")
-        controller == action["controller"] && view_action == action["action"]
-      end.map { |view| File.join(@source.root, view.values_at("path")[0]) }
     end
 
     def matching_routes(actions)
@@ -1553,8 +1568,12 @@ module RailsMap
       RowSelection.match(@controllers.views, request)
     end
 
-    def selected_models(actions, target)
-      names = selected_model_names(actions)
+    def selected_models(actions, target, views)
+      names = if target
+        (actions.flat_map { |action| action["models"] } + view_models(views)).uniq
+      else
+        []
+      end
       request = RowQuery.new(nil, nil, %w[name], "name", names, target)
       [RowSelection.related(@models.models, request), names]
     end
@@ -1598,13 +1617,15 @@ module RailsMap
     end
 
     def self.related(rows, paths)
-      rows.select { |row| paths.include?(row.dig("evidence", "path")) }
+      path_index = MembershipIndex.build(paths)
+      rows.select { |row| path_index.key?(row.dig("evidence", "path")) }
     end
 
     def self.for_actions(rows, actions)
-      keys = actions.map { |action| action.values_at("controller", "action") }
+      action_keys = actions.map { |action| [action["controller"], action["action"]] }
+      keys = MembershipIndex.build(action_keys)
       rows.select do |row|
-        !row.key?("_controller") || keys.include?(row.values_at("_controller", "_action"))
+        !row.key?("_controller") || keys.key?([row["_controller"], row["_action"]])
       end
     end
 
@@ -1649,21 +1670,34 @@ module RailsMap
 
   # Applies the same key and sort rules to each kind of document row.
   RowQuery = Struct.new(:keys, :fields, :sort_fields, :filter_field, :names, :target)
+  # Builds constant-time membership lookups for row selection.
+  class MembershipIndex
+    def self.build(values)
+      values.each_with_object({}) { |value, index| index[value] = true }
+    end
+  end
   # Selects and orders document rows from shared query rules.
   class RowSelection
     def self.match(rows, request)
-      matching = rows.select { |row| request.keys.include?(row.values_at(*request.fields)) }
+      keys = MembershipIndex.build(request.keys)
+      matching = rows.select { |row| keys.key?(row.values_at(*request.fields)) }
       matching.sort_by do |row|
         row.values_at(*request.sort_fields) + row.fetch("evidence").values_at("path", "line")
       end
     end
 
     def self.related(rows, request)
-      selected = rows.select do |row|
-        !request.target || request.names.include?(row[request.filter_field])
-      end
+      return matching_names(rows, request) if request.target
+
+      rows.sort_by { |row| row.values_at(*request.sort_fields) }
+    end
+
+    def self.matching_names(rows, request)
+      names = MembershipIndex.build(request.names)
+      selected = rows.select { |row| names.key?(row[request.filter_field]) }
       selected.sort_by { |row| row.values_at(*request.sort_fields) }
     end
+
   end
 
   # Coordinates the independent source scanners.

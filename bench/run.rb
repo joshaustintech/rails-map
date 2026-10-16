@@ -11,10 +11,14 @@ REFERENCE = File.join(ROOT, "bin/rails-map-reference")
 COMPILED = File.join(ROOT, "build/rails-map")
 RUNS = 30
 
-options = { baseline_only: false, record_baseline: false }
+options = { baseline_only: false, record_baseline: false, maps_only: false, map_max_ratio: 0.9 }
 OptionParser.new do |parser|
-  parser.banner = "Usage: ruby bench/run.rb [--baseline-only]"
+  parser.banner = "Usage: ruby bench/run.rb [--baseline-only] [--maps-only] [--map-max-ratio RATIO]"
   parser.on("--baseline-only", "Measure CRuby + Prism only") { options[:baseline_only] = true }
+  parser.on("--maps-only", "Measure only full map commands") { options[:maps_only] = true }
+  parser.on("--map-max-ratio RATIO", Float, "Maximum Spinel/reference median for map commands") do |value|
+    options[:map_max_ratio] = value
+  end
   parser.on("--record-baseline", "Write fresh CRuby + Prism medians to bench/baseline.json") do
     options[:baseline_only] = true
     options[:record_baseline] = true
@@ -25,6 +29,9 @@ def fail_with(message)
   warn "rails-map benchmark: #{message}"
   exit 1
 end
+
+fail_with("--map-max-ratio must be finite and nonnegative") unless options[:map_max_ratio].finite? && options[:map_max_ratio] >= 0
+fail_with("--maps-only cannot be combined with --record-baseline") if options[:maps_only] && options[:record_baseline]
 
 def read_repositories(lock_path, corpus_root)
   File.readlines(lock_path, chomp: true).filter_map do |line|
@@ -138,9 +145,12 @@ puts "Runs: 1 warm-up + #{RUNS} timed process runs; JSON parsing and compile tim
 puts "Corpus: #{corpus}"
 
 results = {}
+ratio_failed = false
 repositories.each do |name, root, target|
   results[name] = {}
-  { "map" => ["map"], "inspect" => ["inspect", target] }.each do |label, arguments|
+  commands = { "map" => ["map"], "inspect" => ["inspect", target] }
+  commands.delete("inspect") if options[:maps_only]
+  commands.each do |label, arguments|
     reference_command = [RbConfig.ruby, REFERENCE, *arguments]
     reference_output = invoke(reference_command, root)
     reference_median = measure(reference_command, root, reference_output, reference_output)
@@ -162,9 +172,14 @@ repositories.each do |name, root, target|
       "spinel_to_reference_ratio" => ratio.round(4)
     }
     puts "#{name} #{label}: reference #{reference_median.round(3)} ms; Spinel #{compiled_median.round(3)} ms; ratio #{ratio.round(4)}"
-    fail_with("#{name} #{label}: Spinel must be at most 90% of reference median") if ratio > 0.9
+    maximum = label == "map" ? options[:map_max_ratio] : 0.9
+    if ratio > maximum
+      warn "rails-map benchmark: #{name} #{label} ratio #{ratio.round(4)} exceeds #{maximum}"
+      ratio_failed = true
+    end
   end
 end
 
 puts JSON.pretty_generate(results)
+fail_with("one or more runtime ratios exceeded their limits") if ratio_failed
 save_baseline(results, locked_commits(LOCK)) if options[:record_baseline]
