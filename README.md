@@ -67,7 +67,7 @@ at most 0.20 of the reference median. Tool versions and repository commits
 must match `bench/baseline.json` and `bench/repositories.lock`.
 
 The 2026-10-16 run used CRuby 3.4.9, Prism 1.9.0, and Spinel
-`a753180b` on macOS arm64. The map/inspect ratios were 0.0851/0.0829 for the
-sample app, 0.1938/0.1827 for CASA, and 0.1747/0.1758 for Discourse. These
+`a753180b` on macOS arm64. The map/inspect ratios were 0.0861/0.0849 for the
+sample app, 0.1949/0.1856 for CASA, and 0.1750/0.1759 for Discourse. These
 results apply to the pinned checkouts. They do not show performance on every
 Rails project.

@@ -1,6 +1,6 @@
 # rails-map completion and fivefold performance spec
 
-**Status:** Complete
+**Status:** In progress
 **Date:** 2026-10-16
 
 ## Problem Statement
@@ -156,8 +156,8 @@ non-CodeLens method.
   facts. There is no upstream LSP change.
 - **Rails coverage:** unproven beyond fixtures and three sparse repositories.
 - **Performance:** all six final cases passed the 0.20 ratio limit. The clean
-  final verification at `c8a5289` measured ratios 0.0851 and 0.0829 for the
-  sample app, 0.1938 and 0.1827 for CASA, and 0.1747 and 0.1758 for Discourse
+  full verification at `d3add22` measured ratios 0.0861 and 0.0849 for the
+  sample app, 0.1949 and 0.1856 for CASA, and 0.1750 and 0.1759 for Discourse
   (`map`, `inspect`).
 - **Release gate:** clean macOS arm64 run passed with 21 tests, 128 assertions,
   12/12 mutants killed, Flay 0, Reek 0, and a native Mach-O arm64 build.
