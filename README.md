@@ -1,5 +1,18 @@
 # rails-map
 
+## Introduction
+
+Rails applications can spread navigation details across routes, controllers,
+views, and models. A code search can find text, but it does not show how these
+parts connect. Rails console and runtime tools can show runtime behavior, but
+they need a working application and may run application code.
+
+rails-map reads source files without starting Rails or running application
+code. It links supported routes, actions, views, and models. It also reports
+source evidence and patterns it cannot resolve. Use it to inspect a project
+when you need a source-based map without running the application. It cannot
+prove behavior created at run time.
+
 rails-map reads Rails source files. It does not start Rails or run app code.
 Use it to find routes, actions, views, models, and model links. It also lists
 source patterns it cannot resolve.
