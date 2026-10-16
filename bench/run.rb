@@ -11,13 +11,18 @@ REFERENCE = File.join(ROOT, "bin/rails-map-reference")
 COMPILED = File.join(ROOT, "build/rails-map")
 RUNS = 30
 
-options = { baseline_only: false, record_baseline: false, maps_only: false, map_max_ratio: 0.9 }
+options = { baseline_only: false, record_baseline: false, maps_only: false, inspections_only: false,
+  map_max_ratio: 0.9, inspect_max_ratio: 0.9 }
 OptionParser.new do |parser|
-  parser.banner = "Usage: ruby bench/run.rb [--baseline-only] [--maps-only] [--map-max-ratio RATIO]"
+  parser.banner = "Usage: ruby bench/run.rb [--baseline-only] [--maps-only | --inspections-only] [--map-max-ratio RATIO] [--inspect-max-ratio RATIO]"
   parser.on("--baseline-only", "Measure CRuby + Prism only") { options[:baseline_only] = true }
   parser.on("--maps-only", "Measure only full map commands") { options[:maps_only] = true }
+  parser.on("--inspections-only", "Measure only action inspection commands") { options[:inspections_only] = true }
   parser.on("--map-max-ratio RATIO", Float, "Maximum Spinel/reference median for map commands") do |value|
     options[:map_max_ratio] = value
+  end
+  parser.on("--inspect-max-ratio RATIO", Float, "Maximum Spinel/reference median for inspect commands") do |value|
+    options[:inspect_max_ratio] = value
   end
   parser.on("--record-baseline", "Write fresh CRuby + Prism medians to bench/baseline.json") do
     options[:baseline_only] = true
@@ -30,8 +35,14 @@ def fail_with(message)
   exit 1
 end
 
-fail_with("--map-max-ratio must be finite and nonnegative") unless options[:map_max_ratio].finite? && options[:map_max_ratio] >= 0
-fail_with("--maps-only cannot be combined with --record-baseline") if options[:maps_only] && options[:record_baseline]
+%i[map_max_ratio inspect_max_ratio].each do |key|
+  value = options.fetch(key)
+  fail_with("--#{key.to_s.tr("_", "-")} must be finite and nonnegative") unless value.finite? && value >= 0
+end
+fail_with("--maps-only and --inspections-only are mutually exclusive") if options[:maps_only] && options[:inspections_only]
+if options[:record_baseline] && (options[:maps_only] || options[:inspections_only])
+  fail_with("--maps-only or --inspections-only cannot be combined with --record-baseline")
+end
 
 def read_repositories(lock_path, corpus_root)
   File.readlines(lock_path, chomp: true).filter_map do |line|
@@ -150,6 +161,7 @@ repositories.each do |name, root, target|
   results[name] = {}
   commands = { "map" => ["map"], "inspect" => ["inspect", target] }
   commands.delete("inspect") if options[:maps_only]
+  commands.delete("map") if options[:inspections_only]
   commands.each do |label, arguments|
     reference_command = [RbConfig.ruby, REFERENCE, *arguments]
     reference_output = invoke(reference_command, root)
@@ -172,7 +184,7 @@ repositories.each do |name, root, target|
       "spinel_to_reference_ratio" => ratio.round(4)
     }
     puts "#{name} #{label}: reference #{reference_median.round(3)} ms; Spinel #{compiled_median.round(3)} ms; ratio #{ratio.round(4)}"
-    maximum = label == "map" ? options[:map_max_ratio] : 0.9
+    maximum = label == "map" ? options[:map_max_ratio] : options[:inspect_max_ratio]
     if ratio > maximum
       warn "rails-map benchmark: #{name} #{label} ratio #{ratio.round(4)} exceeds #{maximum}"
       ratio_failed = true
