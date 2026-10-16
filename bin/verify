@@ -6,6 +6,14 @@ SPINEL=${SPINEL:-spinel}
 export SPINEL
 cd "$ROOT"
 
+ruby -e '
+  author = `git show -s --format=%an%x00%ae HEAD`
+  message = `git show -s --format=%B HEAD`
+  expected = "Josh Austin\x0083935880+joshaustintech@users.noreply.github.com\n"
+  abort "HEAD author must be Josh Austin <83935880+joshaustintech@users.noreply.github.com>." unless author == expected
+  abort "HEAD must include Co-authored-by: Codex <codex@openai.com>." unless message.lines.any? { |line| line.strip == "Co-authored-by: Codex <codex@openai.com>" }
+'
+
 if [ "$(uname -s)" != Darwin ]; then
   echo "release gate requires a native macOS host" >&2
   exit 1
