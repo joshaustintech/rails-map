@@ -1,49 +1,46 @@
 # rails-map completion and fivefold performance spec
 
-**Status:** Approved for execution
+**Status:** Complete
 **Date:** 2026-10-16
 
 ## Problem Statement
 
 Claude Code's LSP client does not request `textDocument/codeLens`. The
 `ruby-lsp-rails` issue asks for controller-action route and view information
-through another LSP method. The issue remains open. See
+through another LSP method. The issue remains open as of 2026-10-16. See
 [ruby-lsp-rails issue 694](https://github.com/Shopify/ruby-lsp-rails/issues/694).
 
-rails-map now provides a separate static CLI. It maps routes, controller
-actions, view candidates, models, and associations. This is a useful alternate
-access path. It does not change `ruby-lsp-rails`, add a non-CodeLens LSP method,
-or prove that Claude Code will discover and invoke the CLI in a real task.
+rails-map provides a separate static CLI. It maps routes, controller actions,
+view candidates, models, and associations. It does not change
+`ruby-lsp-rails` or add a non-CodeLens LSP method. A user-directed Antigravity
+CLI (`agy`) trial proved that an agent can retrieve and cite navigation facts.
 
-The CLI meets its current acceptance contract. The last full verification
-matched canonical output on three pinned repositories and passed its 10%
-performance gate. That is not proof of complete Rails coverage. The reference
-and compiled scanner can share the same mistaken assumptions, and the corpus
-contains only three sparse source checkouts.
+The initial CLI passed a 10% performance gate. That was not proof of complete
+Rails coverage. The reference and compiled scanner can share mistaken
+assumptions, and the corpus contains only three sparse source checkouts.
 
-The request has also moved beyond its original threshold. The last measured
+The request then moved beyond its original threshold. The measured
 Spinel-to-CRuby + Prism runtime ratios were 0.1287 and 0.1014 for the sample
 app, 0.4831 and 0.2966 for CASA, and 0.3032 and 0.2905 for Discourse, for
 `map` and `inspect` respectively. Only two of six comparisons reached 5x.
-The slowest case is CASA `map` at about 2.1x. The current gate still permits
-ratios as high as 0.90.
+The slowest case was CASA `map` at about 2.1x. The gate then permitted ratios
+as high as 0.90.
 
 ## Solution
 
-Finish rails-map as a dependable, agent-usable static navigation tool. Define
-and test its Rails syntax support against independently reviewed expected
-facts. Keep unknown runtime behavior visible as unresolved evidence. Add a
-Claude Code task trial that proves an agent can get route and view facts from
-the CLI without CodeLens.
+Finish rails-map as an agent-usable static navigation tool. Define and test
+its Rails syntax support against independently reviewed expected facts. Keep
+unknown runtime behavior visible as unresolved evidence. Run an agent CLI
+trial that retrieves route and view facts and cites their source locations.
 
 Profile the six pinned benchmark cases, optimize their actual bottlenecks, and
 raise the per-case target to at least 5x the contemporaneous CRuby + Prism
 median. Keep semantic equality, source evidence, mutation, Flay, and Reek gates.
 
-This solves the practical access problem through a CLI when Claude Code can
-run it. It does not close the upstream LSP request. Do not claim that the
-upstream request is fixed unless a separate `ruby-lsp-rails` change exposes
-the information through a supported non-CodeLens method.
+This solves the practical access problem through an agent-usable CLI. It does
+not close the upstream LSP request. Do not claim that request is fixed unless
+a separate `ruby-lsp-rails` change exposes the information through a supported
+non-CodeLens method.
 
 ## User Stories
 
@@ -53,7 +50,7 @@ the information through a supported non-CodeLens method.
    only its relevant routes, views, models, associations, and uncertainty.
 3. As a code agent, I want to retrieve controller-action navigation data
    without CodeLens, so that I can use the data in a coding task.
-4. As a Claude Code user, I want the project instructions to show how to run
+4. As a coding-agent user, I want the project instructions to show how to run
    rails-map, so that I do not need to know an undocumented command.
 5. As a developer, I want route and view rows to include relative source paths
    and line numbers, so that I can verify each result in the repository.
@@ -107,12 +104,13 @@ the information through a supported non-CodeLens method.
 - Test the CLI as the primary seam. Compare canonical JSON on the same pinned
   repositories, but also add independently reviewed expected facts. Oracle
   parity alone is not correctness evidence.
-- Preserve the 10% gate while profiling and optimizing. Raise the gate to
-  5x per repository and command only when every case meets the target.
+- Preserve the initial 10% gate while profiling and optimizing. Raise the
+  final gate to a 0.20 median ratio per repository and command after every
+  case meets the 5x target.
 - Measure one warm-up and 30 timed process runs per command. Exclude compile
   time and record CRuby, Prism, Spinel, and full repository commit versions.
 - Keep benchmark cases on the same Mac and same checkout for each paired run.
-- Treat Claude Code retrieval as a separate acceptance test from static CLI
+- Treat agent CLI retrieval as a separate acceptance test from static CLI
   parity. Treat an upstream non-CodeLens LSP method as a separate project.
 
 ## Testing Decisions
@@ -125,9 +123,9 @@ the information through a supported non-CodeLens method.
   Golden facts must not be generated from the CRuby oracle under test.
 - Compare canonical JSON from the compiled CLI and CRuby + Prism on all pinned
   repositories for both commands.
-- Run a Claude Code task with CodeLens unavailable. Require it to retrieve an
-  expected route and view from the CLI and cite their source paths and lines.
-  Report this as model-trial evidence, separate from CLI tests.
+- Run an agent CLI task with editor navigation unavailable. Require it to
+  retrieve an expected route and view from the CLI and cite their source paths
+  and lines. Report this as model-trial evidence, separate from CLI tests.
 - Profile and time one warm-up plus 30 runs for each of the six repository and
   command pairs. Require exact semantic equality on every timed run and a
   median speed ratio of at most 0.20 in the final gate.
@@ -153,13 +151,17 @@ the information through a supported non-CodeLens method.
 ### Honest completion assessment
 
 - **Current CLI plan:** implemented and verified against its present contract.
-- **Original issue:** partially addressed. The CLI is another possible access
-  path, but there is no upstream LSP change or Claude Code task-trial proof.
+- **Original issue:** partially addressed. The CLI provides an alternate
+  access path, and the AGY trial proves one agent can retrieve navigation
+  facts. There is no upstream LSP change.
 - **Rails coverage:** unproven beyond fixtures and three sparse repositories.
-- **Initial 10% performance goal:** passed in the last full verification.
-- **5x performance goal:** not met in four of six comparisons.
+- **Performance:** all six final cases passed the 0.20 ratio limit. The clean
+  final verification at `c8a5289` measured ratios 0.0851 and 0.0829 for the
+  sample app, 0.1938 and 0.1827 for CASA, and 0.1747 and 0.1758 for Discourse
+  (`map`, `inspect`).
+- **Release gate:** clean macOS arm64 run passed with 21 tests, 128 assertions,
+  12/12 mutants killed, Flay 0, Reek 0, and a native Mach-O arm64 build.
 
-The benchmark runner currently measures CRuby + Prism again during each full
-run and enforces a 10% improvement. The saved baseline records versions and
-medians, but the final 5x gate must be made explicit and must reject toolchain
-or corpus drift.
+The benchmark runner measures CRuby + Prism and Spinel on the pinned corpus.
+It checks canonical JSON on warm-up and every timed run, enforces a maximum
+0.20 median ratio, and rejects toolchain or corpus drift from the baseline.

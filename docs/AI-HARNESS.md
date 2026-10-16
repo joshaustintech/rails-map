@@ -23,4 +23,4 @@ Do not change reference output rules after porting starts unless an ADR records 
 
 ## Completion
 
-The implementation is ready when `bin/verify` passes on the pinned repositories. The gate requires exact semantic output and at least 10 percent lower Spinel median runtime for every repository and command.
+The implementation is ready when `bin/verify` passes on the pinned repositories. The gate requires exact canonical output and a Spinel median ratio no greater than 0.20 for every repository and command. It also checks pinned tool versions, mutation strength, source quality, and a native macOS build.
