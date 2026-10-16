@@ -1,0 +1,90 @@
+#!/usr/bin/env ruby
+
+require "etc"
+require "fileutils"
+require "open3"
+require "tmpdir"
+
+ROOT = File.expand_path("..", __dir__)
+SOURCE = File.join(ROOT, "lib/rails_map/spinel_main.rb")
+SPINEL = ENV.fetch("SPINEL", "spinel")
+FIXTURE = File.join(ROOT, "fixtures/rails61")
+MUTANTS = {
+  "resource show path" => ['"show" => [%w[GET], "/:id"]', '"show" => [%w[GET], "/:key"]'],
+  "route update verb" => ['"update" => [%w[PATCH PUT], "/:id"]', '"update" => [%w[PATCH], "/:id"]'],
+  "dynamic route detection" => ['text.match?(/^\\s*(mount|draw|devise_for|devise_scope)\\b/)', 'text.match?(/^\\s*(mount|devise_for|devise_scope)\\b/)'],
+  "view extension lookup" => ['VIEW_EXTENSIONS = %w[html.erb turbo_stream.erb', 'VIEW_EXTENSIONS = %w[missing.erb turbo_stream.erb'],
+  "controller action discovery" => ['line.match?(/^\\s*def\\s+(?!self\\.)[\\w!?]+/)', 'line.match?(/^\\s*def\\s+missing[\\w!?]+/)'],
+  "controller model references" => ['"models" => ControllerScanner.model_names(body)', '"models" => []'],
+  "explicit view confidence" => ['action.view_candidate(view_path, render_call.line, "direct")', 'action.view_candidate(view_path, render_call.line, "conventional")'],
+  "dynamic render classification" => ['"kind" => "dynamic_render"', '"kind" => "dynamic_route"'],
+  "association singularization" => ["    def self.singular(name)\n      name.sub(/ies\\z/, \"y\").sub(/s\\z/, \"\")", "    def self.singular(name)\n      name"],
+  "dynamic association certainty" => ['line.include?("through:")', 'false'],
+  "association confidence" => ['AssociationResolution.new(inferred_target(match[1], match[2]), "conventional", false)', 'AssociationResolution.new(inferred_target(match[1], match[2]), "unresolved", false)'],
+  "direct path normalization" => ['path.start_with?("/") ? path : "/#{path}"', 'path']
+}.freeze
+
+def run(*command)
+  stdout, stderr, status = Open3.capture3(*command)
+  [stdout, stderr, status.success?]
+end
+
+def canonical(text)
+  JSON.generate(JSON.parse(text))
+end
+
+def compile_and_run(name, (before, after), expected)
+  Dir.mktmpdir("rails-map-mutant-") do |directory|
+    source = File.join(directory, "mutant.rb")
+    binary = File.join(directory, "rails-map")
+    original = File.read(SOURCE)
+    abort "invalid mutant #{name}: source match count is not one" unless original.scan(before).length == 1
+
+    File.write(source, original.sub(before, after))
+    _out, error, compiled = run(SPINEL, source, "-o", binary)
+    abort "mutant compilation failed for #{name}: #{error}" unless compiled
+
+    commands = [["map"], ["inspect", "UsersController#show"]]
+    killed = commands.any? do |arguments|
+      output, _error, status = run(binary, *arguments, "--root", FIXTURE, "--json")
+      !status || canonical(output) != expected.fetch(arguments.first)
+    end
+    abort "surviving mutant: #{name}" unless killed
+
+    name
+  end
+end
+
+require "json"
+
+baseline = File.join(ROOT, "build/rails-map")
+unless File.executable?(baseline)
+  abort "build the CLI before running mutation checks"
+end
+
+expected = {}
+[["map"], ["inspect", "UsersController#show"]].each do |arguments|
+  output, error, success = run(baseline, *arguments, "--root", FIXTURE, "--json")
+  abort "baseline command failed: #{error}" unless success
+  expected[arguments.first] = canonical(output)
+end
+tasks = MUTANTS.to_a
+task_count = tasks.length
+results = Queue.new
+workers = Array.new([Etc.nprocessors, task_count].min) do
+  Thread.new do
+    loop do
+      task = tasks.pop
+      break unless task
+
+      results << compile_and_run(task[0], task[1], expected)
+    rescue StandardError => error
+      results << error
+    end
+  end
+end
+workers.each(&:join)
+completed = Array.new(task_count) { results.pop }
+failure = completed.find { |item| item.is_a?(Exception) }
+abort failure.message if failure
+puts "mutation gate passed: #{completed.length} mutants killed in parallel"

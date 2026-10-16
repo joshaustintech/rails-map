@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "command": "map",
+      "target": "UsersController#show",
+      "requires": [
+        { "collection": "routes", "fields": ["verb", "path", "controller", "action", "confidence", "evidence"], "values": ["GET", "/users/:id", "users", "show", "conventional", { "path": "config/routes.rb", "line": 2 }] },
+        { "collection": "routes", "fields": ["verb", "path", "controller", "action", "confidence", "evidence"], "values": ["GET", "/health", "health", "show", "direct", { "path": "config/routes.rb", "line": 3 }] },
+        { "collection": "actions", "fields": ["controller", "route_controller", "action", "source", "models"], "values": ["UsersController", "users", "show", { "path": "app/controllers/users_controller.rb", "line": 2 }, ["User"]] },
+        { "collection": "views", "fields": ["controller", "action", "path", "confidence", "evidence"], "values": ["UsersController", "show", "app/views/users/show.html.erb", "conventional", { "path": "app/controllers/users_controller.rb", "line": 2 }] },
+        { "collection": "models", "fields": ["name", "source"], "values": ["User", { "path": "app/models/user.rb", "line": 1 }] },
+        { "collection": "associations", "fields": ["model", "name", "target", "confidence", "evidence"], "values": ["User", "posts", "Post", "conventional", { "path": "app/models/user.rb", "line": 6 }] },
+        { "collection": "unresolved", "fields": ["kind", "evidence"], "values": ["dynamic_route", { "path": "config/routes.rb", "line": 6 }] },
+        { "collection": "unresolved", "fields": ["kind", "evidence"], "values": ["dynamic_association_target", { "path": "app/models/user.rb", "line": 7 }] }
+      ],
+      "forbids": [
+        { "collection": "routes", "fields": ["path"], "values": ["/conditional"] },
+        { "collection": "associations", "fields": ["name"], "values": ["ghosts"] }
+      ]
+    },
+    {
+      "command": "inspect",
+      "target": "UsersController#show",
+      "requires": [
+        { "collection": "actions", "fields": ["controller", "route_controller", "action", "source", "models"], "values": ["UsersController", "users", "show", { "path": "app/controllers/users_controller.rb", "line": 2 }, ["User"]] },
+        { "collection": "routes", "fields": ["verb", "path", "controller", "action", "confidence", "evidence"], "values": ["GET", "/users/:id", "users", "show", "conventional", { "path": "config/routes.rb", "line": 2 }] },
+        { "collection": "views", "fields": ["controller", "action", "path", "confidence", "evidence"], "values": ["UsersController", "show", "app/views/users/show.html.erb", "conventional", { "path": "app/controllers/users_controller.rb", "line": 2 }] },
+        { "collection": "models", "fields": ["name", "source"], "values": ["User", { "path": "app/models/user.rb", "line": 1 }] },
+        { "collection": "associations", "fields": ["model", "name", "target", "confidence", "evidence"], "values": ["User", "posts", "Post", "conventional", { "path": "app/models/user.rb", "line": 6 }] },
+        { "collection": "associations", "fields": ["model", "name", "target", "confidence", "evidence"], "values": ["User", "shares", null, "unresolved", { "path": "app/models/user.rb", "line": 5 }] },
+        { "collection": "unresolved", "fields": ["kind", "evidence"], "values": ["dynamic_association_path", { "path": "app/models/user.rb", "line": 5 }] },
+        { "collection": "unresolved", "fields": ["kind", "evidence"], "values": ["dynamic_route", { "path": "config/routes.rb", "line": 6 }] }
+      ],
+      "forbids": [
+        { "collection": "associations", "fields": ["name"], "values": ["ghosts"] }
+      ]
+    },
+    {
+      "command": "inspect",
+      "target": "Admin::UsersController#dynamic",
+      "requires": [
+        { "collection": "unresolved", "fields": ["kind", "evidence"], "values": ["dynamic_render", { "path": "app/controllers/admin/users_controller.rb", "line": 8 }] }
+      ]
+    },
+    {
+      "command": "inspect",
+      "target": "Admin::UsersController#show",
+      "requires": [
+        { "collection": "routes", "fields": ["verb", "path", "controller", "action", "confidence", "evidence"], "values": ["GET", "/admin/users/:id", "admin/users", "show", "direct", { "path": "config/routes.rb", "line": 4 }] },
+        { "collection": "views", "fields": ["controller", "action", "path", "confidence", "evidence"], "values": ["Admin::UsersController", "show", "app/views/shared/user.html.erb", "direct", { "path": "app/controllers/admin/users_controller.rb", "line": 4 }] }
+      ]
+    }
+  ]
+}

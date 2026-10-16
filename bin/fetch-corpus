@@ -1,0 +1,28 @@
+#!/bin/sh
+set -eu
+
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+DEST=${RAILS_MAP_CORPUS:-$ROOT/bench/corpus}
+mkdir -p "$DEST"
+while IFS='|' read -r name url sha paths target; do
+  name=$(printf '%s' "$name" | tr -d ' ')
+  case "$name" in ''|\#*) continue ;; esac
+  url=$(printf '%s' "$url" | sed 's/^ *//;s/ *$//')
+  sha=$(printf '%s' "$sha" | sed 's/^ *//;s/ *$//')
+  paths=$(printf '%s' "$paths" | sed 's/^ *//;s/ *$//')
+  checkout="$DEST/$name"
+  if [ ! -d "$checkout/.git" ]; then
+    mkdir -p "$checkout"
+    git -C "$checkout" init -q
+    git -C "$checkout" remote add origin "$url"
+  fi
+  git -C "$checkout" fetch --quiet --depth 1 origin "$sha"
+  git -C "$checkout" checkout --quiet --detach -f "$sha"
+  git -C "$checkout" sparse-checkout init --cone
+  old_ifs=$IFS
+  IFS=,
+  set -- $paths
+  IFS=$old_ifs
+  git -C "$checkout" sparse-checkout set "$@"
+  printf 'checked out %s at %s\n' "$name" "$sha"
+done < "$ROOT/bench/repositories.lock"

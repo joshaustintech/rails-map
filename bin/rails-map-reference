@@ -1,0 +1,32 @@
+#!/usr/bin/env ruby
+
+require "optparse"
+require_relative "../lib/rails_map/reference"
+
+options = { root: Dir.pwd, json: false }
+parser = OptionParser.new do |opts|
+  opts.banner = "Usage: rails-map-reference map|inspect [CONTROLLER#ACTION] [options]"
+  opts.on("--root PATH", "Rails project root") { |value| options[:root] = value }
+  opts.on("--json", "Print versioned JSON") { options[:json] = true }
+end
+
+command = ARGV.shift
+target = ARGV.shift if command == "inspect"
+parser.parse!(ARGV)
+unless %w[map inspect].include?(command) && (command != "inspect" || target&.include?("#"))
+  warn parser
+  exit 2
+end
+
+result = RailsMap::Reference.new(options[:root]).result(target)
+if command == "inspect" && result.fetch("actions").empty?
+  warn "No action found: #{target}"
+  exit 1
+end
+
+if options[:json]
+  puts JSON.pretty_generate(result)
+else
+  puts "rails-map reference v#{result.fetch("schema_version")}"
+  result.fetch("actions").each { |item| puts "#{item.fetch("controller")}##{item.fetch("action")}" }
+end

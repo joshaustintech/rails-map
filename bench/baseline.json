@@ -1,0 +1,28 @@
+{
+  "measured_on": "2026-10-16",
+  "warmup_runs": 1,
+  "timed_runs": 30,
+  "compile_time_excluded": true,
+  "versions": {
+    "cruby": "3.4.9",
+    "prism": "1.9.0",
+    "spinel": "spinel unreleased (a753180b) [apple clang 21.0.0 (cc)]"
+  },
+  "repositories": {
+    "sample_rails_app_7th_ed": {
+      "commit": "f118bc34a66be4e420d448290e437e63f8b96db2",
+      "map_cruby_prism_median_ms": 78.312,
+      "inspect_cruby_prism_median_ms": 79.938
+    },
+    "casa": {
+      "commit": "b584d2e6e6ebffe382f34c2ec202d20384d035ca",
+      "map_cruby_prism_median_ms": 148.298,
+      "inspect_cruby_prism_median_ms": 143.354
+    },
+    "discourse": {
+      "commit": "802125b979b5bb848a7cfc52409ef3176ffd4d82",
+      "map_cruby_prism_median_ms": 1002.203,
+      "inspect_cruby_prism_median_ms": 962.418
+    }
+  }
+}

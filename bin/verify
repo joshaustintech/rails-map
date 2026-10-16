@@ -1,0 +1,31 @@
+#!/bin/sh
+set -eu
+
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+SPINEL=${SPINEL:-spinel}
+export SPINEL
+cd "$ROOT"
+
+"$ROOT/bin/build"
+SPINEL_VERSION=$("$SPINEL" --version | head -1)
+export SPINEL_VERSION
+find "$ROOT/lib" "$ROOT/test" "$ROOT/bench" "$ROOT/bin" -type f -name '*.rb' -exec ruby -c {} \;
+ruby -I"$ROOT/lib" -e 'Dir["test/*_test.rb"].sort.each { |path| require_relative path }'
+ruby "$ROOT/bin/mutation"
+
+# Prism emits a Ruby warning from its own parser under Ruby 3.4.9.
+if ! RUBYOPT="${RUBYOPT:+$RUBYOPT }-W0" flay lib test bin > "$ROOT/build/flay-report.txt" 2>&1; then
+  cat "$ROOT/build/flay-report.txt"
+  exit 1
+fi
+ruby -e 'report = File.read(ARGV.fetch(0)); abort "Flay findings or malformed report." unless report == "Total score (lower is better) = 0\n"' \
+  "$ROOT/build/flay-report.txt"
+
+if ! reek lib test bin > "$ROOT/build/reek-report.txt" 2>&1; then
+  cat "$ROOT/build/reek-report.txt"
+  exit 1
+fi
+ruby -e 'report = File.read(ARGV.fetch(0)); abort "Reek findings or malformed report." unless report == "0 total warnings\n"' \
+  "$ROOT/build/reek-report.txt"
+
+ruby "$ROOT/bench/run.rb"

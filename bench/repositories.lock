@@ -1,0 +1,4 @@
+# name | clone URL | full commit SHA | sparse checkout paths
+sample_rails_app_7th_ed | https://github.com/JetBrains/sample_rails_app_7th_ed.git | f118bc34a66be4e420d448290e437e63f8b96db2 | app,config,lib | RelationshipsController#create
+casa | https://github.com/rubyforgood/casa.git | b584d2e6e6ebffe382f34c2ec202d20384d035ca | app,config,lib | ReportsController#index
+discourse | https://github.com/discourse/discourse.git | 802125b979b5bb848a7cfc52409ef3176ffd4d82 | app,config,lib,plugins | TopicsController#show

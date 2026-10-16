@@ -1,0 +1,18 @@
+{
+  "conventional": [
+    ["admin/users", "show", "/admin/users/:id"],
+    ["admin/posts", "index", "/admin/users/:user_id/posts"],
+    ["admin/users", "search", "/admin/users/search"],
+    ["admin/users", "preview", "/admin/users/:id/preview"],
+    ["admin/users", "following", "/admin/users/:id/following"],
+    ["admin/users", "followers", "/admin/users/:id/followers"]
+  ],
+  "explicit": [
+    ["GET", "/api/users/:id", "v1/users", "show"],
+    ["GET", "/api/legacy", "v1/legacy", "show"],
+    ["GET", "/api/old-users", "v1/users", "index"],
+    ["GET", "/admin", "admin/dashboard", "show"],
+    ["GET", "/", "pages", "home"],
+    ["GET", "/health", "health", "show"]
+  ]
+}

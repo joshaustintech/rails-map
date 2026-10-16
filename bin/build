@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+SPINEL=${SPINEL:-spinel}
+
+if ! command -v "$SPINEL" >/dev/null 2>&1; then
+  echo "Spinel compiler not found. Set SPINEL to its executable path." >&2
+  exit 1
+fi
+
+mkdir -p "$ROOT/build"
+"$SPINEL" "$ROOT/lib/rails_map/spinel_main.rb" -o "$ROOT/build/rails-map"

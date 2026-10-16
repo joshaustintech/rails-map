@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+PROGRAM="$ROOT/build/rails-map"
+
+if [ ! -x "$PROGRAM" ]; then
+  "$ROOT/bin/build"
+fi
+
+exec "$PROGRAM" "$@"

@@ -20,6 +20,7 @@
 .dat*
 .repl_history
 build/
+bench/corpus/
 *.bridgesupport
 build-iPhoneOS/
 build-iPhoneSimulator/
