@@ -151,6 +151,20 @@ repositories = read_repositories(LOCK, corpus)
 fail_with("no locked repositories") if repositories.empty?
 fail_with("compiled CLI missing at #{COMPILED}") if !options[:baseline_only] && !File.executable?(COMPILED)
 
+unless options[:baseline_only]
+  baseline_path = File.join(__dir__, "baseline.json")
+  fail_with("missing pinned benchmark baseline #{baseline_path}") unless File.file?(baseline_path)
+
+  baseline = JSON.parse(File.read(baseline_path))
+  expected_versions = baseline.fetch("versions")
+  actual_versions = { "cruby" => RUBY_VERSION, "prism" => Prism::VERSION, "spinel" => spinel_version }
+  fail_with("toolchain differs from bench/baseline.json: #{actual_versions.inspect}") unless actual_versions == expected_versions
+  fail_with("benchmark baseline must use one warm-up and #{RUNS} timed runs") unless baseline["warmup_runs"] == 1 && baseline["timed_runs"] == RUNS
+  fail_with("benchmark baseline must exclude compile time") unless baseline["compile_time_excluded"] == true
+  expected_commits = baseline.fetch("repositories").transform_values { |repo| repo.fetch("commit") }
+  fail_with("benchmark baseline corpus commits differ from repositories.lock") unless expected_commits == locked_commits(LOCK)
+end
+
 puts "CRuby #{RUBY_VERSION}; Prism #{Prism::VERSION}; Spinel #{spinel_version}"
 puts "Runs: 1 warm-up + #{RUNS} timed process runs; JSON parsing and compile time excluded"
 puts "Corpus: #{corpus}"

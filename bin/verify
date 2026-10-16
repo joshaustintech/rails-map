@@ -6,6 +6,17 @@ SPINEL=${SPINEL:-spinel}
 export SPINEL
 cd "$ROOT"
 
+if [ "$(uname -s)" != Darwin ]; then
+  echo "release gate requires a native macOS host" >&2
+  exit 1
+fi
+
+if [ -n "$(git status --porcelain)" ]; then
+  echo "release gate requires a clean checkout" >&2
+  git status --short >&2
+  exit 1
+fi
+
 "$ROOT/bin/build"
 SPINEL_VERSION=$("$SPINEL" --version | head -1)
 export SPINEL_VERSION
@@ -28,4 +39,4 @@ fi
 ruby -e 'report = File.read(ARGV.fetch(0)); abort "Reek findings or malformed report." unless report == "0 total warnings\n"' \
   "$ROOT/build/reek-report.txt"
 
-ruby "$ROOT/bench/run.rb"
+ruby "$ROOT/bench/run.rb" --map-max-ratio 0.20 --inspect-max-ratio 0.20
