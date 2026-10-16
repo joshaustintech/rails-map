@@ -79,8 +79,21 @@ result must match the CRuby and Prism reference. Each Spinel median must be
 at most 0.20 of the reference median. Tool versions and repository commits
 must match `bench/baseline.json` and `bench/repositories.lock`.
 
-The 2026-10-16 run used CRuby 3.4.9, Prism 1.9.0, and Spinel
-`a753180b` on macOS arm64. The map/inspect ratios were 0.0861/0.0849 for the
-sample app, 0.1949/0.1856 for CASA, and 0.1750/0.1759 for Discourse. These
-results apply to the pinned checkouts. They do not show performance on every
-Rails project.
+## Benchmarked performance
+
+The full gate ran on an Apple M1 Pro MacBook Pro. It compared CRuby 3.4.9 with
+Prism 1.9.0 against Spinel `a753180b` on macOS arm64. Each result is the median
+of 30 runs after one warm-up. The build time is not included. Each timed result
+matched the reference JSON.
+
+| Project | Command | CRuby + Prism | Spinel | Speedup |
+| --- | --- | ---: | ---: | ---: |
+| Sample Rails app | `map` | 78.312 ms | 6.743 ms | 11.6× |
+| Sample Rails app | `inspect` | 79.938 ms | 6.789 ms | 11.8× |
+| CASA | `map` | 148.298 ms | 28.891 ms | 5.1× |
+| CASA | `inspect` | 143.354 ms | 26.620 ms | 5.4× |
+| Discourse | `map` | 1002.203 ms | 175.269 ms | 5.7× |
+| Discourse | `inspect` | 962.418 ms | 169.217 ms | 5.7× |
+
+These results apply to the pinned checkouts. They do not show performance on
+every Rails project.
