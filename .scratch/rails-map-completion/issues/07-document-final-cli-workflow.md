@@ -2,7 +2,7 @@
 
 **What to build:** Developers can build, install, and use the finished rails-map CLI by following short, clear README instructions. The instructions match the released behavior and state measured performance without overstating it.
 
-**Blocked by:** 01: Certify the Rails navigation contract; 02: Close audited navigation gaps; 03: Prove Claude Code can retrieve navigation data; 04: Reach fivefold speed for full maps; 05: Reach fivefold speed for action inspection; 06: Ratchet and prove the release gate
+**Blocked by:** 01: Certify the Rails navigation contract; 02: Close audited navigation gaps; 03: Prove Antigravity CLI can retrieve navigation data; 04: Reach fivefold speed for full maps; 05: Reach fivefold speed for action inspection; 06: Ratchet and prove the release gate
 
 **Status:** ready-for-agent
 

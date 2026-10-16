@@ -1,8 +1,8 @@
 # 06: Ratchet and prove the release gate
 
-**What to build:** One deterministic verification command proves navigation correctness, Claude Code retrieval, exact benchmark semantics, fivefold performance, mutation strength, source quality, and a native macOS build.
+**What to build:** One deterministic verification command proves navigation correctness, recorded agent CLI retrieval, exact benchmark semantics, fivefold performance, mutation strength, source quality, and a native macOS build.
 
-**Blocked by:** 03: Prove Claude Code can retrieve navigation data; 04: Reach fivefold speed for full maps; 05: Reach fivefold speed for action inspection
+**Blocked by:** 03: Prove Antigravity CLI can retrieve navigation data; 04: Reach fivefold speed for full maps; 05: Reach fivefold speed for action inspection
 
 **Status:** ready-for-agent
 
