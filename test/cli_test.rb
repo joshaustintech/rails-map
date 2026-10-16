@@ -1,9 +1,12 @@
 require "json"
 require "minitest/autorun"
 require "open3"
+require_relative "cli_test_support"
 
 # Checks the compiled command boundary and user-visible errors.
 class CliTest < Minitest::Test
+  include CliTestSupport
+
   def test_inspect_returns_json_for_known_action
     output, error, status = run_cli("inspect", "UsersController#show")
 
@@ -28,15 +31,6 @@ class CliTest < Minitest::Test
     assert_inspect_error("UsersController", 2, "inspect requires Controller#action")
   end
 
-  def test_parenthesized_response_render_is_not_dynamic_but_layout_is
-    response = inspect_action("Admin::UsersController#response")
-    layout = inspect_action("Admin::UsersController#layout_only")
-    test_class = self.class
-
-    assert_equal [false, true], [test_class.dynamic_render_lines(response).include?(13),
-                                 test_class.dynamic_render_lines(layout).include?(16)]
-  end
-
   def test_association_words_in_comments_are_ignored
     result = inspect_action("UsersController#show")
 
@@ -53,43 +47,16 @@ class CliTest < Minitest::Test
 
   private
 
-  def run_cli(*arguments, root: fixture)
-    Open3.capture3(File.join(self.root, "build/rails-map"), *arguments, "--root", root, "--json")
-  end
-
-  def inspect_action(target)
-    output, error, status = run_cli("inspect", target)
-    assert status.success?, error
-    JSON.parse(output)
-  end
-
-  def self.dynamic_render_lines(result)
-    result.fetch("unresolved").select { |issue| issue.fetch("kind") == "dynamic_render" }
-      .map { |issue| issue.dig("evidence", "line") }
-  end
-
-  def root
-    File.expand_path("..", __dir__)
-  end
-
-  def fixture
-    File.join(root, "fixtures/rails61")
-  end
-
   def assert_namespaced_navigation(output, error, status)
     result = JSON.parse(output)
     assert status.success?, error
     assert_navigation_rows(result)
-    assert_dynamic_render(result)
+    assert_empty CliTestSupport.dynamic_render_lines(result)
   end
 
   def assert_navigation_rows(result)
     assert_includes result.fetch("routes").map { |route| route.fetch("controller") }, "admin/users"
     assert_equal "app/views/shared/user.html.erb", result.fetch("views").first.fetch("path")
-  end
-
-  def assert_dynamic_render(result)
-    assert_includes result.fetch("unresolved").map { |issue| issue.fetch("kind") }, "dynamic_render"
   end
 
   def assert_inspect_error(target, exit_code, message)

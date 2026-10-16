@@ -94,7 +94,8 @@ module RailsMap
 
     def selected_issues
       paths = ReferencePaths.in(@actions, selected_views, selected_models)
-      @snapshot.unresolved.select { |issue| paths.include?(issue.dig("evidence", "path")) }
+      issues = @snapshot.unresolved.select { |issue| paths.include?(issue.dig("evidence", "path")) }
+      ActionIssues.for(issues, @actions)
     end
   end
 
@@ -180,7 +181,7 @@ module RailsMap
     private
 
     def ordered_issues
-      ReferenceOrdering.issues(rows.unresolved)
+      ReferenceOrdering.issues(rows.unresolved).map(&ReferenceOrdering.method(:public_issue))
     end
   end
 
@@ -188,6 +189,20 @@ module RailsMap
   class ReferenceOrdering
     def self.issues(rows)
       rows.uniq.sort_by { |row| row.fetch("evidence").values_at("path", "line") + [row.fetch("kind")] }
+    end
+
+    def self.public_issue(issue)
+      issue.reject { |key, _value| key.start_with?("_") }
+    end
+  end
+
+  # Filters controller render uncertainty after evidence-path selection.
+  class ActionIssues
+    def self.for(issues, actions)
+      targets = actions.map { |action| "#{action.fetch("controller")}##{action.fetch("action")}" }
+      issues.select do |issue|
+        !issue.key?("_controller") || targets.include?("#{issue.fetch("_controller")}##{issue.fetch("_action")}")
+      end
     end
   end
 end

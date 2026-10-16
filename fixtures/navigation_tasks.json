@@ -50,6 +50,25 @@
         { "collection": "routes", "fields": ["verb", "path", "controller", "action", "confidence", "evidence"], "values": ["GET", "/admin/users/:id", "admin/users", "show", "direct", { "path": "config/routes.rb", "line": 4 }] },
         { "collection": "views", "fields": ["controller", "action", "path", "confidence", "evidence"], "values": ["Admin::UsersController", "show", "app/views/shared/user.html.erb", "direct", { "path": "app/controllers/admin/users_controller.rb", "line": 4 }] }
       ]
+    },
+    {
+      "command": "inspect",
+      "target": "Admin::UsersController#layout_only",
+      "requires": [],
+      "forbids": [
+        { "collection": "unresolved", "fields": ["kind", "evidence"], "values": ["dynamic_render", { "path": "app/controllers/admin/users_controller.rb", "line": 16 }] }
+      ]
+    },
+    {
+      "command": "inspect",
+      "target": "Admin::UsersController#mixed_render",
+      "requires": [
+        { "collection": "views", "fields": ["controller", "action", "path", "confidence", "evidence"], "values": ["Admin::UsersController", "mixed_render", "app/views/shared/user.html.erb", "direct", { "path": "app/controllers/admin/users_controller.rb", "line": 20 }] },
+        { "collection": "unresolved", "fields": ["kind", "evidence"], "values": ["dynamic_render", { "path": "app/controllers/admin/users_controller.rb", "line": 21 }] }
+      ],
+      "forbids": [
+        { "collection": "unresolved", "fields": ["kind", "evidence"], "values": ["dynamic_render", { "path": "app/controllers/admin/users_controller.rb", "line": 20 }] }
+      ]
     }
   ]
 }

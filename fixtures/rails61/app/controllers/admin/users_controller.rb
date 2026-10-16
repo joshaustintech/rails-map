@@ -5,7 +5,7 @@ module Admin
     end
 
     def dynamic
-      render template_name
+      render template_name, layout: "bare"
     end
 
     def response
@@ -13,7 +13,12 @@ module Admin
     end
 
     def layout_only
-      render layout: "bare"
+      render layout: "bare", locals: { name: "Ada" }
+    end
+
+    def mixed_render
+      render template: "shared/user", layout: "bare"
+      render template_name
     end
   end
 end

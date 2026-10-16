@@ -56,11 +56,19 @@ module RailsMap
     end
 
     def sorted_routes
-      @routes.sort_by { |route| route.values_at("path", "verb", "controller", "action") }
+      @routes.sort_by(&RouteOrdering.method(:key))
     end
 
     def sorted_issues
       @issues.uniq.sort_by { |issue| RouteSyntax.issue_key(issue) }
+    end
+  end
+
+  # Adds source evidence as a deterministic tie-break for duplicate routes.
+  class RouteOrdering
+    def self.key(route)
+      route.values_at("path", "verb", "controller", "action", "confidence") +
+        route.fetch("evidence").values_at("path", "line")
     end
   end
 

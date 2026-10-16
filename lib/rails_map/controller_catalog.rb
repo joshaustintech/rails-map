@@ -15,7 +15,8 @@ module RailsMap
     end
 
     def self.view_key(row)
-      row.values_at("controller", "action", "path")
+      row.values_at("controller", "action", "path", "confidence") +
+        row.fetch("evidence").values_at("path", "line")
     end
   end
 
@@ -161,7 +162,7 @@ module RailsMap
 
     def call
       explicit, issues = explicit_views
-      [explicit.empty? ? implicit_views : explicit, issues]
+      [explicit.empty? ? implicit_views : explicit, issues.map { |issue| tag_action(issue) }]
     end
 
     private
@@ -207,13 +208,18 @@ module RailsMap
     end
 
     def dynamic_render(node)
-      SourceSupport.unresolved(@root, "dynamic_render", @source_path, node.location.start_line)
+      tag_action(SourceSupport.unresolved(@root, "dynamic_render", @source_path, node.location.start_line))
+    end
+
+    def tag_action(issue)
+      issue.merge("_controller" => @action.fetch("controller"), "_action" => @action.fetch("action"))
     end
   end
 
   # Reads the statically useful parts of one render call.
   class RenderCall
     RESPONSE_OPTIONS = %w[json plain html body file inline].freeze
+    NON_VIEW_OPTIONS = %w[assigns content_type disposition formats headers layout locals location status variants].freeze
 
     def initialize(node)
       @node = node
@@ -230,8 +236,10 @@ module RailsMap
     end
 
     def dynamic?
+      return true if SourceSupport.positional_arguments(@node).any?
       return true if view_option?
       return false if response_only?
+      return false if non_view_options_only?
 
       !@arguments.empty?
     end
@@ -249,6 +257,10 @@ module RailsMap
 
     def view_option?
       @options.key?("template") || @options.key?("partial")
+    end
+
+    def non_view_options_only?
+      !@options.empty? && (@options.keys - NON_VIEW_OPTIONS).empty?
     end
 
     def response_only?

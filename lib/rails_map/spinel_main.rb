@@ -110,7 +110,12 @@ module RailsMap
     end
   end
   # Controller action and source line for one render statement.
-  RenderCall = Struct.new(:action, :line)
+  RenderCall = Struct.new(:action, :line) do
+    def dynamic_issue(source)
+      { "kind" => "dynamic_render", "evidence" => source.evidence(action.path, line),
+        "_controller" => action.controller, "_action" => action.action }
+    end
+  end
   # One line in the Rails route file.
   RouteLine = Struct.new(:path, :line, :text, :option_text, :inline_context) do
     LITERAL_ROUTE = /^\s*(get|post|put|patch|delete|match)\s+(?:["']([^"']*)["']|:([a-z_]+))\s*(?:=>\s*|,.*\bto:\s*)["']([A-Za-z0-9_:\/]+)#([A-Za-z0-9_]+)["']/
@@ -1132,13 +1137,14 @@ module RailsMap
     def self.dynamic_render?(line)
       return false if line.match?(/\brender\s*\(?\s*(?:#.*)?$/)
       return true if line.match?(/\b[A-Z]\w*(?:::\w+)*\.render\s*\(/)
+      return false if line.match?(/\brender\s*(?:\(\s*)?(?:assigns|content_type|disposition|formats|headers|layout|locals|location|status|variants)\s*:/) &&
+        !line.match?(/\b(?:template|partial|action)\s*:/)
 
       !line.match?(/\brender\b[\s\S]*\b(?:json|plain|html|body|file|inline)\s*:/)
     end
 
     def record_dynamic_render(render_call)
-      evidence = @source.evidence(render_call.action.path, render_call.line)
-      @unresolved << { "kind" => "dynamic_render", "evidence" => evidence }
+      @unresolved << render_call.dynamic_issue(@source)
     end
 
     def self.render_target(line)
@@ -1537,13 +1543,13 @@ module RailsMap
 
     def matching_routes(actions)
       keys = DocumentSelection.route_keys(actions)
-      request = RowQuery.new(keys, %w[controller action], %w[path verb controller action])
+      request = RowQuery.new(keys, %w[controller action], %w[path verb controller action confidence])
       RowSelection.match(@routes.routes, request)
     end
 
     def matching_views(actions)
       keys = DocumentSelection.view_keys(actions)
-      request = RowQuery.new(keys, %w[controller action], %w[controller action path])
+      request = RowQuery.new(keys, %w[controller action], %w[controller action path confidence])
       RowSelection.match(@controllers.views, request)
     end
 
@@ -1565,7 +1571,8 @@ module RailsMap
     def related_unresolved(actions, views, models)
       paths = DocumentSelection.issue_paths(actions, views, models)
       all_rows = UnresolvedIssues.all(@controllers, @routes, @models)
-      UnresolvedIssues.order(UnresolvedIssues.related(all_rows, paths))
+      related = UnresolvedIssues.related(all_rows, paths)
+      UnresolvedIssues.order(UnresolvedIssues.for_actions(related, actions))
     end
   end
 
@@ -1594,11 +1601,22 @@ module RailsMap
       rows.select { |row| paths.include?(row.dig("evidence", "path")) }
     end
 
+    def self.for_actions(rows, actions)
+      keys = actions.map { |action| action.values_at("controller", "action") }
+      rows.select do |row|
+        !row.key?("_controller") || keys.include?(row.values_at("_controller", "_action"))
+      end
+    end
+
     def self.order(rows)
       rows.uniq.sort_by do |row|
         evidence = row.values_at("evidence")[0]
         [evidence["path"], evidence["line"], row.values_at("kind")[0]]
-      end
+      end.map(&self.class.method(:public_row))
+    end
+
+    def self.public_row(row)
+      row.slice("kind", "evidence")
     end
   end
 
@@ -1635,7 +1653,9 @@ module RailsMap
   class RowSelection
     def self.match(rows, request)
       matching = rows.select { |row| request.keys.include?(row.values_at(*request.fields)) }
-      matching.sort_by { |row| row.values_at(*request.sort_fields) }
+      matching.sort_by do |row|
+        row.values_at(*request.sort_fields) + row.fetch("evidence").values_at("path", "line")
+      end
     end
 
     def self.related(rows, request)

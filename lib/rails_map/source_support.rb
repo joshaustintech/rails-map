@@ -92,6 +92,12 @@ module RailsMap
       call.arguments&.arguments || []
     end
 
+    def self.positional_arguments(call)
+      arguments(call).reject do |argument|
+        argument.is_a?(Prism::KeywordHashNode) || argument.is_a?(Prism::HashNode)
+      end
+    end
+
     def self.keyword_options(call)
       hash = options_hash(call)
       hash ? option_pairs(hash.elements) : {}
@@ -176,7 +182,7 @@ module RailsMap
     end
 
     def self.options_hash(call)
-      arguments(call).find do |argument|
+      call.arguments&.arguments&.find do |argument|
         argument.is_a?(Prism::KeywordHashNode) || argument.is_a?(Prism::HashNode)
       end
     end
