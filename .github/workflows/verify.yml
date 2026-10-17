@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   macos-release-gate:
-    runs-on: macos-26
+    runs-on: macos-26-xlarge
     steps:
       - uses: actions/checkout@v4
         with:
