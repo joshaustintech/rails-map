@@ -56,29 +56,126 @@ every Rails project.
 
 ## Requirements
 
-- macOS on Apple silicon
-- Spinel compiler to build the CLI
-- Ruby, Prism, Flay, and Reek to run the development checks
+- macOS or Linux on a supported CPU
+- Spinel `a753180b964c9f077e26e8b756f261b9d2339c91` to build the CLI
+- Ruby 3.4.9, Prism 1.9.0, Flay 2.14.4, and Reek 6.5.0 for development checks
 
-The CLI is a native executable. It does not need Ruby, Prism, or Rails at run
-time.
+The CLI is a native executable. It does not need Ruby, Prism, or Rails at run time.
 
 ## Build and install
 
-Put `spinel` on your `PATH`, then build the CLI:
+Install Git, Make, a C compiler, curl, tar, and Ruby build libraries. On macOS,
+install Xcode Command Line Tools (`xcode-select --install`) and Homebrew Ruby
+build libraries (`brew install openssl@3 readline libyaml`). On Linux, use the
+package command for your distro. Set a UTF-8 locale before you build Spinel on
+Linux: `export LC_ALL=C.UTF-8`.
+
+Install these packages for your distro. Run one command.
+
+Debian or Ubuntu:
 
 ```sh
+sudo apt-get update
+sudo apt-get install -y build-essential diffutils git curl tar libssl-dev zlib1g-dev libyaml-dev libreadline-dev libffi-dev libgdbm-dev libncurses-dev
+```
+
+Arch Linux:
+
+```sh
+sudo pacman -S --needed base-devel diffutils git curl tar openssl zlib libyaml readline libffi gdbm ncurses
+```
+
+Fedora:
+
+```sh
+sudo dnf install -y gcc make diffutils git curl tar openssl-devel zlib-devel libyaml-devel readline-devel libffi-devel gdbm-devel ncurses-devel
+```
+
+openSUSE Leap or Tumbleweed:
+
+```sh
+sudo zypper install -y gcc make diffutils git curl tar libopenssl-devel zlib-devel libyaml-devel readline-devel libffi-devel gdbm-devel ncurses-devel
+```
+
+Choose one Ruby manager. On macOS, install rbenv with Homebrew. On Linux,
+install rbenv and its ruby-build plugin from GitHub. Then enable rbenv in your shell. Use zsh on macOS and Bash on Linux:
+
+```sh
+# macOS zsh
+brew install rbenv ruby-build
+echo 'eval "$(rbenv init - zsh)"' >> "$HOME/.zshrc"
+source "$HOME/.zshrc"
+
+# Linux Bash
+git clone https://github.com/rbenv/rbenv.git "$HOME/.rbenv"
+mkdir -p "$HOME/.rbenv/plugins"
+git clone https://github.com/rbenv/ruby-build.git "$HOME/.rbenv/plugins/ruby-build"
+echo 'export PATH="$HOME/.rbenv/bin:$PATH"' >> "$HOME/.bashrc"
+echo 'eval "$(rbenv init - bash)"' >> "$HOME/.bashrc"
+source "$HOME/.bashrc"
+
+# macOS and Linux, after installing rbenv
+rbenv install 3.4.9
+rbenv shell 3.4.9
+```
+
+Or install Mise. On macOS, use Homebrew. On Linux, use the official installer.
+Activate it in your shell, then install Ruby 3.4.9:
+
+```sh
+# macOS
+brew install mise
+
+# Linux
+curl https://mise.run | sh
+
+# macOS and Linux
+# Linux Bash
+echo 'eval "$(mise activate bash)"' >> "$HOME/.bashrc"
+source "$HOME/.bashrc"
+
+# macOS zsh
+echo 'eval "$(mise activate zsh)"' >> "$HOME/.zshrc"
+source "$HOME/.zshrc"
+
+# macOS and Linux
+mise use -g ruby@3.4.9
+```
+
+Install Prism first. Spinel needs it to generate compiler tables. Then build the
+pinned Spinel compiler from source. This command works on macOS and Linux. It
+installs Spinel into `$HOME/.local/bin`:
+
+```sh
+gem install prism -v 1.9.0 --no-document
+```
+
+```sh
+mkdir -p "$HOME/src"
+git clone --no-tags https://github.com/matz/spinel.git "$HOME/src/spinel"
+git -C "$HOME/src/spinel" checkout a753180b964c9f077e26e8b756f261b9d2339c91
+git -C "$HOME/src/spinel" config core.abbrev 8
+make -C "$HOME/src/spinel" deps
+make -C "$HOME/src/spinel"
+mkdir -p "$HOME/.local/bin"
+cp "$HOME/src/spinel/bin/spinel" "$HOME/.local/bin/spinel"
+```
+
+Add `$HOME/.local/bin` to `PATH`. Install the pinned development gems, then
+build rails-map:
+
+```sh
+gem install flay -v 2.14.4 --no-document
+gem install reek -v 6.5.0 --no-document
 bin/build
 ```
 
-The build writes `build/rails-map`. Copy it to a directory on your `PATH`:
+The build writes `build/rails-map`. Install it with:
 
 ```sh
 mkdir -p "$HOME/.local/bin"
 cp build/rails-map "$HOME/.local/bin/rails-map"
 ```
-
-Add `$HOME/.local/bin` to your `PATH` if needed.
 
 ## Verify
 

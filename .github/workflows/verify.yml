@@ -1,0 +1,38 @@
+name: Verify
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  macos-release-gate:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4.9'
+      - name: Install analysis tools
+        run: gem install prism -v 1.9.0 --no-document && gem install flay -v 2.14.4 --no-document && gem install reek -v 6.5.0 --no-document
+      - name: Build pinned Spinel
+        run: |
+          git clone --no-tags https://github.com/matz/spinel.git "$RUNNER_TEMP/spinel"
+          git -C "$RUNNER_TEMP/spinel" checkout a753180b964c9f077e26e8b756f261b9d2339c91
+          git -C "$RUNNER_TEMP/spinel" config core.abbrev 8
+          make -C "$RUNNER_TEMP/spinel" deps
+          make -C "$RUNNER_TEMP/spinel"
+          echo "$RUNNER_TEMP/spinel/bin" >> "$GITHUB_PATH"
+      - run: bin/fetch-corpus
+      - run: bin/verify
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rails-map-macos-arm64
+          path: build/rails-map
+          if-no-files-found: error
+          retention-days: 14
