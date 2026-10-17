@@ -162,7 +162,7 @@ cp "$HOME/src/spinel/bin/spinel" "$HOME/.local/bin/spinel"
 ```
 
 Add `$HOME/.local/bin` to `PATH`. Install the pinned development gems, then
-build rails-map:
+build rails-map with Spinel optimization level 3:
 
 ```sh
 gem install flay -v 2.14.4 --no-document

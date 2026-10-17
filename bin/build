@@ -10,4 +10,4 @@ if ! command -v "$SPINEL" >/dev/null 2>&1; then
 fi
 
 mkdir -p "$ROOT/build"
-"$SPINEL" "$ROOT/lib/rails_map/spinel_main.rb" -o "$ROOT/build/rails-map"
+"$SPINEL" "$ROOT/lib/rails_map/spinel_main.rb" -O 3 -o "$ROOT/build/rails-map"
